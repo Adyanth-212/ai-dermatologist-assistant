@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
+import ReactMarkdown from 'react-markdown';
 
-const API_BASE = process.env.REACT_APP_API_BASE || ""; // CRA env
+// Make sure API_BASE points to your backend
+const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:8001"; 
 
 function useTheme() {
   const [theme, setTheme] = useState(
@@ -28,7 +30,86 @@ export default function App() {
   const [view, setView] = useState("landing"); // landing | preview | fast_triage | deep_search
   const { theme, toggle } = useTheme();
 
-  // optional geolocation
+  // --- NEW: Chat State ---
+  const [messages, setMessages] = useState([]);
+  const [currentMessage, setCurrentMessage] = useState("");
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const chatEndRef = useRef(null); // To auto-scroll chat
+  const suggestedPrompts = {
+  eczema: [
+    "What are common Eczema triggers?",
+    "Suggest daily routines for Eczema",
+    "Are there OTC options for Eczema?",
+    "When should I see a doctor for Eczema?",
+  ],
+  psoriasis: [
+    "What lifestyle changes help Psoriasis?",
+    "Are there different types of Psoriasis?",
+    "Suggest OTC options for Psoriasis",
+    "When should I consult a dermatologist?",
+  ],
+  atopic_dermatitis: [
+    "What causes Atopic Dermatitis?",
+    "How can I manage Atopic Dermatitis at home?",
+    "Are there foods that worsen Atopic Dermatitis?",
+    "When should I visit a dermatologist for Atopic Dermatitis?",
+  ],
+  melanoma: [
+    "What are the early warning signs of Melanoma?",
+    "How can I differentiate Melanoma from normal moles?",
+    "What are the main causes and risk factors for Melanoma?",
+    "What treatments are available for Melanoma?",
+  ],
+  bcc: [
+    "What are common symptoms of Basal Cell Carcinoma (BCC)?",
+    "Is BCC dangerous or slow-growing?",
+    "What treatments are available for BCC?",
+    "How can I prevent Basal Cell Carcinoma recurrence?",
+  ],
+  melanocytic_nevi: [
+    "What are Melanocytic Nevi (moles)?",
+    "How can I tell if a mole is harmless or needs checking?",
+    "Do Melanocytic Nevi ever become cancerous?",
+    "How should I care for skin with many moles?",
+  ],
+  bkl: [
+    "What are Benign Keratosis-like Lesions (BKL)?",
+    "Are BKLs caused by sun exposure?",
+    "When should I get BKLs checked by a doctor?",
+    "Are there home treatments for Benign Keratosis?",
+  ],
+  seborrheic_keratoses: [
+    "What are Seborrheic Keratoses and how do they form?",
+    "Can Seborrheic Keratoses turn into skin cancer?",
+    "Are there safe removal options for Seborrheic Keratoses?",
+    "How can I tell Seborrheic Keratoses from other growths?",
+  ],
+  fungal_infections: [
+    "What causes Tinea, Ringworm, or Candidiasis?",
+    "What are the symptoms of common fungal skin infections?",
+    "Which antifungal creams or medications are most effective?",
+    "How can I prevent fungal skin infections from recurring?",
+  ],
+  viral_infections: [
+    "What are common viral skin infections like Warts and Molluscum?",
+    "How are viral skin infections transmitted?",
+    "What are home remedies and medical treatments for Warts?",
+    "When should I see a doctor for viral skin lesions?",
+  ],
+  lichen_planus: [
+    "What is Lichen Planus and how is it related to Psoriasis?",
+    "What are common triggers for Lichen Planus?",
+    "Is Lichen Planus contagious?",
+    "What are the best treatments for Lichen Planus?",
+  ],
+  default: [
+    "What are common skin rashes?",
+    "How does sunscreen work?",
+    "When should I see a dermatologist?",
+  ],
+};
+
+  // --- (Geolocation and Cleanup Effects are unchanged) ---
   const [geo, setGeo] = useState(null);
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(
@@ -38,12 +119,17 @@ export default function App() {
     );
   }, []);
 
-  // cleanup preview URL
   useEffect(() => {
     return () => {
       if (previewURL) URL.revokeObjectURL(previewURL);
     };
   }, [previewURL]);
+
+  // --- Auto-scroll chat ---
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
 
   function openPicker() {
     fileRef.current?.click();
@@ -56,56 +142,89 @@ export default function App() {
     setFileName(f.name);
     const url = URL.createObjectURL(f);
     setPreviewURL(url);
-    setView("preview"); // Set view to preview
-    setTriage(null); // Clear old results
+    setView("preview");
+    setTriage(null);
+    setMessages([]); // Clear chat history
   }
 
   async function runFastAnalysis() {
     if (!file) return;
     setLoading(true);
-    setTriage(null); // Clear previous results
+    setTriage(null);
     try {
-      if (API_BASE) {
-        const form = new FormData();
-        form.append("image", file);
-        const params = geo
-          ? { latitude: geo.coords.latitude, longitude: geo.coords.longitude }
-          : {};
-        const { data } = await axios.post(`${API_BASE}/analyze/quick`, form, {
-          params,
-        });
-        setTriage({ condition: data.condition, confidence: data.confidence });
-      } else {
-        // MOCK if API not configured
-        await new Promise((r) => setTimeout(r, 900));
-        setTriage({ condition: "Eczema", confidence: 0.71 });
-      }
+      const form = new FormData();
+      form.append("image", file);
+      const params = geo
+        ? { latitude: geo.coords.latitude, longitude: geo.coords.longitude }
+        : {};
+      
+      // Use API_BASE, which points to your M4 server
+      const { data } = await axios.post(`${API_BASE}/analyze/quick`, form, {
+        params,
+      });
+      setTriage({ condition: data.condition, confidence: data.confidence });
       setView("fast_triage");
     } catch (err) {
-      alert("Analyze failed. Check REACT_APP_API_BASE / backend logs.");
+      alert("Analyze failed. Is your backend server (main_server.py) running on port 8001?");
       console.error(err);
     } finally {
       setLoading(false);
     }
   }
 
+  // MODIFIED: This now sets up the chat
   function handleStartDeepSearch() {
     if (!file) return;
-    console.log("Starting deep search chat...");
+    
+    // Get context from triage if it exists
+    const context = triage ? triage.condition : "the uploaded image";
+    
+    // Pre-populate chat with a welcome message
+    setMessages([
+      {
+        sender: "bot",
+        text: `I'm ready to discuss ${context}. You can ask me about common symptoms or treatments.`,
+      },
+    ]);
     setView("deep_search");
+  }
+
+  // NEW: This function calls your /chat endpoint
+  async function handleSendMessage(e) {
+    e.preventDefault(); // Prevent form from reloading page
+    if (!currentMessage.trim()) return;
+
+    const userMessage = { sender: "user", text: currentMessage };
+    setMessages((prev) => [...prev, userMessage]);
+    setCurrentMessage("");
+    setIsChatLoading(true);
+
+    try {
+      const { data } = await axios.post(`${API_BASE}/chat`, {
+        message: currentMessage,
+        context: triage ? triage.condition : null, // Send context
+      });
+
+      const botMessage = { sender: "bot", text: data.reply };
+      setMessages((prev) => [...prev, botMessage]);
+    } catch (err) {
+      const errorMessage = { sender: "bot", text: "Sorry, I'm having trouble connecting to the server." };
+      setMessages((prev) => [...prev, errorMessage]);
+      console.error(err);
+    } finally {
+      setIsChatLoading(false);
+    }
   }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-50">
-      {/* background */}
+      {/* ... (background and nav are unchanged) ... */}
       <div className="pointer-events-none absolute inset-0">
         <div className="bg-grid absolute inset-0 opacity-20 dark:opacity-25" />
         <div className="orb orb-purple absolute left-[-8vmin] top-[-6vmin] h-[46vmin] w-[46vmin] rounded-full animate-floatA mix-blend-multiply dark:mix-blend-screen opacity-75" />
         <div className="orb orb-green absolute right-[-12vmin] top-[10vmin] h-[46vmin] w-[46vmin] rounded-full animate-floatB mix-blend-multiply dark:mix-blend-screen opacity-70" />
         <div className="orb orb-pink absolute left-[10vmin] bottom-[-14vmin] h-[46vmin] w-[46vmin] rounded-full animate-floatC mix-blend-multiply dark:mix-blend-screen opacity-70" />
       </div>
-
-      {/* nav */}
       <header className="relative z-10 flex items-center justify-between px-5 py-4 sm:px-7 sm:py-5">
         <div className="text-lg font-extrabold sm:text-xl">
           🩺 Derma
@@ -116,12 +235,12 @@ export default function App() {
         <div className="flex items-center gap-2">
           <span
             className={`rounded-full border px-2.5 py-1 text-[11px] sm:text-xs backdrop-blur ${
-              API_BASE
+              API_BASE && API_BASE !== "http://localhost:8001"
                 ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-200"
                 : "border-amber-500/40 text-amber-700 dark:text-amber-200"
             }`}
           >
-            {API_BASE ? "API ok" : "API not set"}
+            {API_BASE && API_BASE !== "http://localhost:8001" ? "API ok" : "API not set"}
           </span>
           <button
             onClick={toggle}
@@ -136,9 +255,9 @@ export default function App() {
           </button>
         </div>
       </header>
-
-      {/* hero title */}
-      <div className="relative z-10 mx-auto max-w-5xl px-6 text-center">
+      
+      {/* ... (hero title and action row are unchanged) ... */}
+       <div className="relative z-10 mx-auto max-w-5xl px-6 text-center">
         <h1 className="mt-1 text-4xl font-black leading-tight sm:mt-2 sm:text-6xl">
           AI{" "}
           <span className="bg-gradient-to-r from-indigo-500 via-emerald-400 to-pink-400 bg-clip-text text-transparent">
@@ -152,10 +271,7 @@ export default function App() {
           <b>Not medical advice.</b>
         </p>
       </div>
-
-      {/* action row */}
       <div className="relative z-10 mt-4 flex flex-wrap items-center justify-center gap-3 px-6">
-        {/* Shows on initial landing */}
         {view === "landing" && (
           <button
             onClick={openPicker}
@@ -164,8 +280,6 @@ export default function App() {
             Start analysis
           </button>
         )}
-
-        {/* Shows after image is selected */}
         {view === "preview" && (
           <>
             <button
@@ -190,19 +304,16 @@ export default function App() {
             </button>
           </>
         )}
-
-        {/* Shows after an analysis is complete */}
         {(view === "fast_triage" || view === "deep_search") && (
           <>
             <button
               onClick={openPicker}
-              className="rounded-xl border border-slate-300 bg-white/60 px-5 py-2.5 font-semibold backdrop-blur transition hover:bg-white/80 dark:border-white/20 dark:bg-white/10 dark:hover:bg-white/1S15"
+              className="rounded-xl border border-slate-300 bg-white/60 px-5 py-2.5 font-semibold backdrop-blur transition hover:bg-white/80 dark:border-white/20 dark:bg-white/10 dark:hover:bg-white/15"
             >
               Change Image
             </button>
           </>
         )}
-
         <input
           ref={fileRef}
           type="file"
@@ -212,16 +323,13 @@ export default function App() {
         />
       </div>
 
-      {/* --- preview / triage / chat panel --- */}
-      {/* This div is now separate and only contains the preview/results */}
+      {/* --- (Preview Panel is unchanged) --- */}
       <div className="relative z-10 mx-auto mt-6 max-w-5xl px-6">
-        {/* This is the image preview, it shows in all views *except* landing */}
         {view !== "landing" && (
           <>
             <h2 className="mb-3 text-center text-lg font-semibold text-slate-300">
               Image Preview
             </h2>
-
             <div className="mx-auto w-full max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-3 shadow-2xl backdrop-blur dark:border-white/10">
               <div className="overflow-hidden rounded-xl border border-white/10 bg-black/80">
                 {previewURL ? (
@@ -240,7 +348,7 @@ export default function App() {
           </>
         )}
 
-        {/* This panel only shows for FAST TRIAGE results */}
+        {/* --- (Triage Panel is unchanged) --- */}
         {view === "fast_triage" && triage && (
           <div className="mx-auto mt-6 w-full max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-4 text-center backdrop-blur">
             <div className="text-sm uppercase tracking-wide text-slate-400">
@@ -252,7 +360,6 @@ export default function App() {
                 ({Math.round(triage.confidence * 100)}%)
               </span>
             </div>
-            {/* NEW: Buttons to move to deep search or re-run */}
             <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
               <button
                 onClick={handleStartDeepSearch}
@@ -271,29 +378,75 @@ export default function App() {
           </div>
         )}
 
-        {/* NEW: This panel only shows for DEEP SEARCH */}
+        {/* --- MODIFIED: Deep Search Panel is now a real Chatbot --- */}
         {view === "deep_search" && (
-          <div className="mx-auto mt-6 w-full max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-4 text-center backdrop-blur">
-            <div className="text-sm uppercase tracking-wide text-slate-400">
+          <div className="mx-auto mt-6 w-full max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-4 text-left backdrop-blur">
+            <div className="mb-2 text-center text-sm uppercase tracking-wide text-slate-400">
               Deep Search (Chat)
             </div>
-            <div className="mt-4 text-slate-200">
-              {/* This is a placeholder for your chat component */}
-              <p className="font-semibold text-lg">AI Chatbot Interface</p>
-              <p className="mt-2 text-slate-400">
-                This is where you would load your chatbot component to discuss the
-                uploaded image in detail.
-              </p>
-              <div className="mt-4 h-64 rounded-lg border border-dashed border-slate-600 bg-slate-900/50 flex items-center justify-center">
-                Chatbot Placeholder
-              </div>
+            
+            {/* Message List */}
+            <div className="h-80 overflow-y-auto rounded-lg border border-slate-700/50 bg-slate-900/50 p-4 space-y-4">
+              {messages.map((msg, index) => (
+                <div
+                  key={index}
+                  className={`flex ${
+                    msg.sender === "user" ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  <div
+                    className={`max-w-[80%] rounded-lg px-4 py-2 text-sm ${
+                  msg.sender === "user"
+                    ? "bg-indigo-600 text-white"
+                    // Add prose class + spacing modifiers
+                    : "bg-slate-700 text-slate-200 prose prose-invert prose-sm max-w-none prose-headings:mt-3 prose-p:mb-2"
+                }`}
+                >
+                {/* Wrap bot messages in ReactMarkdown */}
+                {msg.sender === 'bot' ? <ReactMarkdown>{msg.text}</ReactMarkdown> : msg.text}
+                  </div>    
+                </div>
+              ))}
+              {isChatLoading && (
+                <div className="justify-start flex">
+                  <div className="bg-slate-700 text-slate-400 text-sm px-4 py-2 rounded-lg">
+                    Typing...
+                  </div>
+                </div>
+              )}
+              {/* Empty div to auto-scroll to */}
+              <div ref={chatEndRef} />
             </div>
+
+            {/* Message Input Form */}
+            <form onSubmit={handleSendMessage} className="mt-4 flex gap-2">
+              {/* Wrap the input in a div with the gradient and padding */}
+<div className="flex-1 rounded-lg bg-gradient-to-r from-indigo-500 to-emerald-500 p-[2px]">
+  <input
+    type="text"
+    value={currentMessage}
+    onChange={(e) => setCurrentMessage(e.target.value)}
+    placeholder="Ask about symptoms, treatments, etc..."
+    // Removed border, added bg color, slightly smaller rounding
+    className="w-full rounded-[7px] bg-slate-800/80 px-4 py-2 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-0" 
+    disabled={isChatLoading}
+  />
+</div>
+
+{/* The Send button remains the same */}
+<button
+  type="submit"
+  className="rounded-lg bg-gradient-to-r from-indigo-500 to-emerald-500 px-5 py-2 font-semibold text-white transition hover:from-indigo-600 hover:to-emerald-600 disabled:opacity-50"
+  disabled={isChatLoading}
+>
+  Send
+</button>
+            </form>
           </div>
         )}
       </div>
 
-      {/* --- bottom cards (how it works) --- */}
-      {/* This <section> is now separate and has its own centering and padding */}
+      {/* --- (Bottom Cards are unchanged) --- */}
       <section className="relative z-10 mx-auto mt-10 max-w-5xl px-6 pb-16 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <article className="rounded-2xl border border-slate-900/10 bg-slate-900/[.03] p-4 text-left backdrop-blur dark:border-white/15 dark:bg-white/5">
           <div className="mb-1 text-xl">🖼️</div>
