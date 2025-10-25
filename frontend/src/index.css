@@ -1,3 +1,20 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* animated bg helpers */
+@layer utilities {
+  .bg-grid {
+    background-image:
+      radial-gradient(circle at 50% 50%, rgba(255,255,255,.06), transparent 40%),
+      linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px);
+    background-size: 100% 100%, 42px 42px, 42px 42px;
+    background-position: center, top left, top left;
+    mask-image: radial-gradient(60% 60% at 50% 35%, #000 65%, transparent 100%);
+  }
+  .orb { filter: blur(34px) saturate(120%); opacity:.65; mix-blend-mode:screen; }
+  .orb-purple { background: radial-gradient(circle at 30% 30%, #7c5cff, #2f2b67 60%); }
+  .orb-green  { background: radial-gradient(circle at 30% 30%, #28e0ae, #0b3f39 60%); }
+  .orb-pink   { background: radial-gradient(circle at 30% 30%, #ff8bd1, #522241 60%); }
+}
