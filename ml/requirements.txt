@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+python-multipart
+"tensorflow[and-cuda]"  # Installs TensorFlow with GPU support for your 3060
+numpy
+opencv-python-headless  # For cv2
+Pillow                  # For PIL (Image)
