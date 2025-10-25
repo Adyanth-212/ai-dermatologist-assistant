@@ -1,0 +1,31 @@
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.h5
+*.tflite
+*.ckpt
+*.pth
+*.pt
+*.log
+ml/trained_models/
+ml/logs/
+
+# Node
+node_modules/
+dist/
+build/
+.env
+.env.local
+
+# VSCode
+.vscode/
+
+# Mac
+.DS_Store
+
+# Zip output
+*.zip

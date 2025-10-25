@@ -1,0 +1,15 @@
+
+fastapi
+uvicorn[standard]
+tensorflow
+h5py
+numpy
+pillow
+python-multipart
+requests
+huggingface-hub
+firebase-admin
+python-jose
+pydantic
+scikit-learn
+matplotlib

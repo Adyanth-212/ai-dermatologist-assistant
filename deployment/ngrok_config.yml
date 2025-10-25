@@ -1,0 +1,6 @@
+
+authtoken: "REPLACE_WITH_YOUR_NGROK_TOKEN"
+tunnels:
+  app:
+    proto: http
+    addr: 8001
