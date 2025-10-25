@@ -217,9 +217,9 @@ export default function App() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-50">
+    <div className="relative min-h-screen bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-50">
       {/* ... (background and nav are unchanged) ... */}
-      <div className="pointer-events-none absolute inset-0">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="bg-grid absolute inset-0 opacity-20 dark:opacity-25" />
         <div className="orb orb-purple absolute left-[-8vmin] top-[-6vmin] h-[46vmin] w-[46vmin] rounded-full animate-floatA mix-blend-multiply dark:mix-blend-screen opacity-75" />
         <div className="orb orb-green absolute right-[-12vmin] top-[10vmin] h-[46vmin] w-[46vmin] rounded-full animate-floatB mix-blend-multiply dark:mix-blend-screen opacity-70" />
@@ -257,8 +257,8 @@ export default function App() {
       </header>
       
       {/* ... (hero title and action row are unchanged) ... */}
-       <div className="relative z-10 mx-auto max-w-5xl px-6 text-center">
-        <h1 className="mt-1 text-4xl font-black leading-tight sm:mt-2 sm:text-6xl">
+       <div className="relative z-10 mx-auto max-w-5xl px-6 text-center pt-10 md:pt-14">
+        <h1 className="mt-1 text-4xl font-black leading-[1.1] sm:mt-2 sm:text-6xl">
           AI{" "}
           <span className="bg-gradient-to-r from-indigo-500 via-emerald-400 to-pink-400 bg-clip-text text-transparent">
             Dermatologist
