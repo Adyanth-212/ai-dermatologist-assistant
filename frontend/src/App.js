@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 
-const API_BASE = process.env.REACT_APP_API_BASE || "";  // CRA env
+const API_BASE = process.env.REACT_APP_API_BASE || ""; // CRA env
 
 function useTheme() {
   const [theme, setTheme] = useState(
@@ -25,7 +25,7 @@ export default function App() {
   const [fileName, setFileName] = useState("");
   const [loading, setLoading] = useState(false);
   const [triage, setTriage] = useState(null); // {condition, confidence}
-  const [view, setView] = useState("landing"); // landing | preview | triage
+  const [view, setView] = useState("landing"); // landing | preview | fast_triage | deep_search
   const { theme, toggle } = useTheme();
 
   // optional geolocation
@@ -56,13 +56,14 @@ export default function App() {
     setFileName(f.name);
     const url = URL.createObjectURL(f);
     setPreviewURL(url);
-    setView("preview");
-    setTriage(null);
+    setView("preview"); // Set view to preview
+    setTriage(null); // Clear old results
   }
 
-  async function confirmAndAnalyze() {
+  async function runFastAnalysis() {
     if (!file) return;
     setLoading(true);
+    setTriage(null); // Clear previous results
     try {
       if (API_BASE) {
         const form = new FormData();
@@ -79,7 +80,7 @@ export default function App() {
         await new Promise((r) => setTimeout(r, 900));
         setTriage({ condition: "Eczema", confidence: 0.71 });
       }
-      setView("triage");
+      setView("fast_triage");
     } catch (err) {
       alert("Analyze failed. Check REACT_APP_API_BASE / backend logs.");
       console.error(err);
@@ -88,12 +89,17 @@ export default function App() {
     }
   }
 
+  function handleStartDeepSearch() {
+    if (!file) return;
+    console.log("Starting deep search chat...");
+    setView("deep_search");
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-50">
       {/* background */}
       <div className="pointer-events-none absolute inset-0">
         <div className="bg-grid absolute inset-0 opacity-20 dark:opacity-25" />
-        {/* make orbs pop in both themes */}
         <div className="orb orb-purple absolute left-[-8vmin] top-[-6vmin] h-[46vmin] w-[46vmin] rounded-full animate-floatA mix-blend-multiply dark:mix-blend-screen opacity-75" />
         <div className="orb orb-green absolute right-[-12vmin] top-[10vmin] h-[46vmin] w-[46vmin] rounded-full animate-floatB mix-blend-multiply dark:mix-blend-screen opacity-70" />
         <div className="orb orb-pink absolute left-[10vmin] bottom-[-14vmin] h-[46vmin] w-[46vmin] rounded-full animate-floatC mix-blend-multiply dark:mix-blend-screen opacity-70" />
@@ -124,7 +130,9 @@ export default function App() {
             aria-label="Toggle theme"
           >
             <span className="text-base">{theme === "dark" ? "🌞" : "🌙"}</span>
-            <span className="hidden sm:inline">{theme === "dark" ? "Light" : "Dark"}</span>
+            <span className="hidden sm:inline">
+              {theme === "dark" ? "Light" : "Dark"}
+            </span>
           </button>
         </div>
       </header>
@@ -147,43 +155,50 @@ export default function App() {
 
       {/* action row */}
       <div className="relative z-10 mt-4 flex flex-wrap items-center justify-center gap-3 px-6">
+        {/* Shows on initial landing */}
         {view === "landing" && (
-          <>
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="rounded-xl bg-gradient-to-r from-indigo-400 to-emerald-400 px-5 py-2.5 font-bold text-slate-900 shadow-lg shadow-indigo-500/30 transition hover:scale-[1.01]"
-            >
-              Start analysis
-            </button>
-            <button
-              onClick={() => window.open("https://polygon.technology", "_blank")}
-              className="rounded-xl border border-slate-300 bg-white/60 px-5 py-2.5 font-semibold backdrop-blur transition hover:bg-white/80 dark:border-white/20 dark:bg-white/10 dark:hover:bg-white/15"
-            >
-              See how we verify
-            </button>
-          </>
+          <button
+            onClick={openPicker}
+            className="rounded-xl bg-gradient-to-r from-indigo-400 to-emerald-400 px-5 py-2.5 font-bold text-slate-900 shadow-lg shadow-indigo-500/30 transition hover:scale-[1.01]"
+          >
+            Start analysis
+          </button>
         )}
 
-        {view !== "landing" && (
+        {/* Shows after image is selected */}
+        {view === "preview" && (
           <>
             <button
-              onClick={() => fileRef.current?.click()}
+              onClick={openPicker}
               className="rounded-xl border border-slate-300 bg-white/60 px-5 py-2.5 font-semibold backdrop-blur transition hover:bg-white/80 dark:border-white/20 dark:bg-white/10 dark:hover:bg-white/15"
             >
               Change Image
             </button>
             <button
-              onClick={confirmAndAnalyze}
+              onClick={runFastAnalysis}
               disabled={loading}
               className="rounded-xl bg-gradient-to-r from-indigo-400 to-emerald-400 px-5 py-2.5 font-bold text-slate-900 shadow-lg shadow-indigo-500/30 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {loading ? "Analyzing…" : "Confirm & Analyze"}
+              {loading ? "Analyzing…" : "Run Fast Analysis"}
             </button>
             <button
-              onClick={() => window.open("https://polygon.technology", "_blank")}
-              className="rounded-xl border border-slate-300 bg-white/60 px-5 py-2.5 font-semibold backdrop-blur transition hover:bg-white/80 dark:border-white/20 dark:bg-white/10 dark:hover:bg-white/15"
+              onClick={handleStartDeepSearch}
+              disabled={loading}
+              className="rounded-xl bg-gradient-to-r from-purple-400 to-pink-500 px-5 py-2.5 font-bold text-white shadow-lg shadow-purple-500/30 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              See how we verify
+              Start Deep Search
+            </button>
+          </>
+        )}
+
+        {/* Shows after an analysis is complete */}
+        {(view === "fast_triage" || view === "deep_search") && (
+          <>
+            <button
+              onClick={openPicker}
+              className="rounded-xl border border-slate-300 bg-white/60 px-5 py-2.5 font-semibold backdrop-blur transition hover:bg-white/80 dark:border-white/20 dark:bg-white/10 dark:hover:bg-white/1S15"
+            >
+              Change Image
             </button>
           </>
         )}
@@ -197,8 +212,10 @@ export default function App() {
         />
       </div>
 
-      {/* preview / triage panel */}
-      <div className="relative z-10 mx-auto mt-6 max-w-5xl px-6 pb-16">
+      {/* --- preview / triage / chat panel --- */}
+      {/* This div is now separate and only contains the preview/results */}
+      <div className="relative z-10 mx-auto mt-6 max-w-5xl px-6">
+        {/* This is the image preview, it shows in all views *except* landing */}
         {view !== "landing" && (
           <>
             <h2 className="mb-3 text-center text-lg font-semibold text-slate-300">
@@ -220,51 +237,87 @@ export default function App() {
                 )}
               </div>
             </div>
-
-            {view === "triage" && triage && (
-              <div className="mx-auto mt-6 w-full max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-4 text-center backdrop-blur">
-                <div className="text-sm uppercase tracking-wide text-slate-400">
-                  Quick Triage
-                </div>
-                <div className="mt-1 text-2xl font-semibold">
-                  {triage.condition}{" "}
-                  <span className="text-slate-400">
-                    ({Math.round(triage.confidence * 100)}%)
-                  </span>
-                </div>
-                <div className="mt-3 text-xs text-slate-400">
-                  Tip: click “Confirm & Analyze” again to re-run; “Change Image” to select a different photo.
-                </div>
-              </div>
-            )}
           </>
         )}
 
-        {/* bottom cards (how it works) */}
-        <section className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <article className="rounded-2xl border border-slate-900/10 bg-slate-900/[.03] p-4 text-left backdrop-blur dark:border-white/15 dark:bg-white/5">
-            <div className="mb-1 text-xl">🖼️</div>
-            <h3 className="font-semibold">1. Upload</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Clear, well-lit skin photo. No faces/PII.
-            </p>
-          </article>
-          <article className="rounded-2xl border border-slate-900/10 bg-slate-900/[.03] p-4 text-left backdrop-blur dark:border-white/15 dark:bg-white/5">
-            <div className="mb-1 text-xl">⚙️</div>
-            <h3 className="font-semibold">2. Analyze</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Quick triage now, detailed Grad-CAM report on demand.
-            </p>
-          </article>
-          <article className="rounded-2xl border border-slate-900/10 bg-slate-900/[.03] p-4 text-left backdrop-blur dark:border-white/15 dark:bg-white/5">
-            <div className="mb-1 text-xl">🔗</div>
-            <h3 className="font-semibold">3. Verify</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Hash anchored on Polygon testnet to prove integrity.
-            </p>
-          </article>
-        </section>
+        {/* This panel only shows for FAST TRIAGE results */}
+        {view === "fast_triage" && triage && (
+          <div className="mx-auto mt-6 w-full max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-4 text-center backdrop-blur">
+            <div className="text-sm uppercase tracking-wide text-slate-400">
+              Quick Triage
+            </div>
+            <div className="mt-1 text-2xl font-semibold">
+              {triage.condition}{" "}
+              <span className="text-slate-400">
+                ({Math.round(triage.confidence * 100)}%)
+              </span>
+            </div>
+            {/* NEW: Buttons to move to deep search or re-run */}
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+              <button
+                onClick={handleStartDeepSearch}
+                className="rounded-xl bg-gradient-to-r from-purple-400 to-pink-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-purple-500/30 transition hover:scale-[1.01]"
+              >
+                Start Deep Search on {triage.condition}
+              </button>
+              <button
+                onClick={runFastAnalysis}
+                disabled={loading}
+                className="rounded-xl border border-slate-300 bg-white/60 px-4 py-2 text-sm font-semibold backdrop-blur transition hover:bg-white/80 dark:border-white/20 dark:bg-white/10 dark:hover:bg-white/15 disabled:opacity-50"
+              >
+                {loading ? "Analyzing..." : "Run Fast Analysis Again"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* NEW: This panel only shows for DEEP SEARCH */}
+        {view === "deep_search" && (
+          <div className="mx-auto mt-6 w-full max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-4 text-center backdrop-blur">
+            <div className="text-sm uppercase tracking-wide text-slate-400">
+              Deep Search (Chat)
+            </div>
+            <div className="mt-4 text-slate-200">
+              {/* This is a placeholder for your chat component */}
+              <p className="font-semibold text-lg">AI Chatbot Interface</p>
+              <p className="mt-2 text-slate-400">
+                This is where you would load your chatbot component to discuss the
+                uploaded image in detail.
+              </p>
+              <div className="mt-4 h-64 rounded-lg border border-dashed border-slate-600 bg-slate-900/50 flex items-center justify-center">
+                Chatbot Placeholder
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* --- bottom cards (how it works) --- */}
+      {/* This <section> is now separate and has its own centering and padding */}
+      <section className="relative z-10 mx-auto mt-10 max-w-5xl px-6 pb-16 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <article className="rounded-2xl border border-slate-900/10 bg-slate-900/[.03] p-4 text-left backdrop-blur dark:border-white/15 dark:bg-white/5">
+          <div className="mb-1 text-xl">🖼️</div>
+          <h3 className="font-semibold">1. Upload</h3>
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Clear, well-lit skin photo. No faces/PII.
+          </p>
+        </article>
+        <article className="rounded-2xl border border-slate-900/10 bg-slate-900/[.03] p-4 text-left backdrop-blur dark:border-white/15 dark:bg-white/5">
+          <div className="mb-1 text-xl">⚙️</div>
+          <h3 className="font-semibold">2. Analyze</h3>
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Quick triage now, detailed Grad-CAM report on demand.
+          </p>
+        </article>
+        <article className="rounded-2xl border border-slate-900/10 bg-slate-900/[.03] p-4 text-left backdrop-blur dark:border-white/15 dark:bg-white/5">
+          <div className="mb-1 text-xl">✨</div>
+          <h3 className="font-semibold">3. Dual Analysis</h3>
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Get a quick answer from our fast model, or launch an AI chat to
+            analyze the disease in-depth.
+          </p>
+        </article>
+      </section>
     </div>
   );
 }
