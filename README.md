@@ -1,7 +1,7 @@
 
 # AI Dermatologist Assistant
 
-Repository scaffold for the Hack-O-Ween hackathon project **AI Dermatologist Assistant**.
+Repository scaffold for the Terrathon hackathon project **AI Dermatologist Assistant**.
 
 This zip contains:
 - Frontend (React + Tailwind + Framer Motion) scaffold
